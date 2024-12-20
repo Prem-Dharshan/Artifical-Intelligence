@@ -1,45 +1,32 @@
-import matplotlib.pyplot as plt
+import streamlit as st
 import networkx as nx
+import plotly.graph_objects as go
 from queue import PriorityQueue
+
 
 class State:
     def __init__(self, left, right, boat_position):
         self.left = left  # (M, C)
         self.right = right  # (M, C)
-        self.boat_position = (
-            boat_position  # True if boat is on the left, False if on the right
-        )
-
-    def getLeftMissionaries(self):
-        return self.left[0]
-
-    def getLeftCannibals(self):
-        return self.left[1]
-
-    def getRightMissionaries(self):
-        return self.right[0]
-
-    def getRightCannibals(self):
-        return self.right[1]
+        self.boat_position = boat_position  # True if boat is on the left, False if on the right
 
     def is_valid(self):
+        # Ensure missionaries are not outnumbered on either side
         return (self.left[0] == 0 or self.left[0] >= self.left[1]) and (
-            self.right[0] == 0 or self.right[0] >= self.right[1]
+                self.right[0] == 0 or self.right[0] >= self.right[1]
         )
 
     def is_goal(self):
+        # Goal state: all missionaries and cannibals on the right
         return self.right == (3, 3)
 
     def get_successors(self):
-        l_m = self.getLeftMissionaries()
-        l_c = self.getLeftCannibals()
-        r_m = self.getRightMissionaries()
-        r_c = self.getRightCannibals()
-
+        l_m, l_c = self.left
+        r_m, r_c = self.right
         successors = []
+        moves = [(1, 0), (2, 0), (0, 1), (0, 2), (1, 1)]
 
         if self.boat_position:  # Boat on the left
-            moves = [(1, 0), (2, 0), (0, 1), (0, 2), (1, 1)]
             for m in moves:
                 new_left = (l_m - m[0], l_c - m[1])
                 new_right = (r_m + m[0], r_c + m[1])
@@ -47,7 +34,6 @@ class State:
                 if new_state.is_valid():
                     successors.append(new_state)
         else:  # Boat on the right
-            moves = [(1, 0), (2, 0), (0, 1), (0, 2), (1, 1)]
             for m in moves:
                 new_left = (l_m + m[0], l_c + m[1])
                 new_right = (r_m - m[0], r_c - m[1])
@@ -57,91 +43,124 @@ class State:
 
         return successors
 
-    def __lt__(self, other):
-        return (self.getRightMissionaries() + self.getRightCannibals()) < (
-            other.getRightMissionaries() + other.getRightCannibals()
-        )
-
     def __str__(self):
-        return f"Left: {self.left} & Right: {self.right}, Boat on {'Left' if self.boat_position else 'Right'}"
+        return f"L: {self.left}, R: {self.right}, Boat: {'Left' if self.boat_position else 'Right'}"
 
-def main():
-    start_state = State(left=(3, 3), right=(0, 0), boat_position=True)
+    def __lt__(self, other):
+        # Comparison for priority queue
+        return (self.right[0] + self.right[1]) > (other.right[0] + other.right[1])
+
+
+def visualize_graph(graph, path):
+    fig = go.Figure()
+
+    pos = nx.spring_layout(graph)  # Node positions
+    edge_x = []
+    edge_y = []
+    for edge in graph.edges():
+        x0, y0 = pos[edge[0]]
+        x1, y1 = pos[edge[1]]
+        edge_x.extend([x0, x1, None])
+        edge_y.extend([y0, y1, None])
+
+    # Add edges to the plot
+    fig.add_trace(go.Scatter(
+        x=edge_x,
+        y=edge_y,
+        line=dict(width=1, color='gray'),
+        hoverinfo='none',
+        mode='lines'))
+
+    # Highlight the path in red
+    path_edges = list(zip(path[:-1], path[1:]))
+    for edge in path_edges:
+        x0, y0 = pos[edge[0]]
+        x1, y1 = pos[edge[1]]
+        fig.add_trace(go.Scatter(
+            x=[x0, x1],
+            y=[y0, y1],
+            line=dict(width=2, color='red'),
+            hoverinfo='none',
+            mode='lines'))
+
+    # Add nodes to the plot
+    node_x = []
+    node_y = []
+    node_text = []
+    for node in graph.nodes():
+        x, y = pos[node]
+        node_x.append(x)
+        node_y.append(y)
+        node_text.append(node)
+
+    fig.add_trace(go.Scatter(
+        x=node_x,
+        y=node_y,
+        mode='markers+text',
+        marker=dict(size=10, color='lightblue', line=dict(width=1, color='black')),
+        text=node_text,
+        textposition="top center"))
+
+    fig.update_layout(showlegend=False)
+    fig.update_layout(title="Missionaries and Cannibals Problem State Graph",
+                      title_font_size=20,
+                      margin=dict(l=20, r=20, t=40, b=20),
+                      xaxis=dict(showgrid=False, zeroline=False, visible=False),
+                      yaxis=dict(showgrid=False, zeroline=False, visible=False))
+    return fig
+
+
+def solve_missionaries_cannibals():
+    start_state = State((3, 3), (0, 0), True)
 
     queue = PriorityQueue()
     queue.put((0, start_state))
 
     visited = set()
-    states_generated = 0
-    path_to_goal = []
+    parent_map = {}
 
-    # Create a directed graph to visualize states
     G = nx.DiGraph()
 
     while not queue.empty():
         level, current_state = queue.get()
 
-        # Check if we reached the goal state
+        # If goal state is reached
         if current_state.is_goal():
-            print("Goal reached!")
-            print(current_state)
-            path_to_goal.append(current_state)  # Add goal state to path
-            break
+            path = []
+            while current_state:
+                path.append(str(current_state))
+                current_state = parent_map.get(str(current_state))
+            path.reverse()
+            return G, path
 
-        # Add current state to visited set with boat position included
-        visited.add(
-            (current_state.left, current_state.right, current_state.boat_position)
-        )
+        visited.add(str(current_state))
 
-        # Track the path taken to reach this state
-        path_to_goal.append(current_state)
-
-        # Generate successors and add them to the queue if not visited
         for successor in current_state.get_successors():
-            states_generated += 1
-            if (
-                successor.left,
-                successor.right,
-                successor.boat_position,
-            ) not in visited:
+            if str(successor) not in visited:
                 queue.put((level + 1, successor))
-                # Add edge to graph from current state to successor state
+                parent_map[str(successor)] = current_state
                 G.add_edge(str(current_state), str(successor))
 
-    print(f"Total states generated: {states_generated}")
+    return G, []
 
-    # Print the path taken to reach the goal
-    print("Path to goal:")
-    for state in path_to_goal:
-        print(state)
 
-    # Visualize the graph of states with enhancements
-    plt.figure(figsize=(12, 8))  # Set figure size
-    pos = nx.spring_layout(G)      # Positions for all nodes
+def main():
+    st.title("Missionaries and Cannibals Problem Visualization")
+    st.write("This app visualizes the Missionaries and Cannibals problem as a graph.")
 
-    # Draw nodes with custom size and color
-    nx.draw_networkx_nodes(G, pos,
-                            node_size=700,
-                            node_color='lightblue',
-                            edgecolors='black')
+    G, path = solve_missionaries_cannibals()
 
-    # Draw edges with custom color and width
-    nx.draw_networkx_edges(G, pos,
-                             arrowstyle='-|>',
-                             arrowsize=20,
-                             edge_color='gray',
-                             width=2)
+    if path:
+        st.success(f"Solution found! The path to the goal is:")
+        for state in path:
+            st.write(state)
+    else:
+        st.error("No solution found!")
 
-    # Draw labels with smaller font size and bold style
-    nx.draw_networkx_labels(G, pos,
-                             font_size=8,
-                             font_family='sans-serif',
-                             font_weight='bold')
+    # Visualize the graph with the path
+    fig = visualize_graph(G, path)
+    st.plotly_chart(fig, use_container_width=True)
 
-    plt.title("Missionaries and Cannibals State Graph", fontsize=8)
-    plt.axis('off')
-    plt.grid(False)
-    plt.show()
 
 if __name__ == "__main__":
     main()
