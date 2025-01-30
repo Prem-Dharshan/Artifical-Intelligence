@@ -2,43 +2,46 @@ from collections import deque
 
 
 class State:
-    def __init__(self, three=0, five=0):
-        self.three = three
-        self.five = five
+    def __init__(self, first=0, second=0):
+        self.first = first
+        self.second = second
 
     def __eq__(self, other):
-        return isinstance(other, State) and self.three == other.three and self.five == other.five
+        return isinstance(other, State) and self.first == other.first and self.second == other.second
 
     def __hash__(self):
-        return hash((self.three, self.five))
+        return hash((self.first, self.second))
 
     def __repr__(self):
-        return f"State(three={self.three}, five={self.five})"
+        return f"State(first={self.first}, second={self.second})"
 
 
-def main():
+def solve_water_jug_problem(capacity_first, capacity_second, goal_state):
+    capacity = State(capacity_first, capacity_second)
     start_state = State(0, 0)
-    goal_state = State(0, 4)
 
     queue = deque([start_state])
     visited = {start_state}
 
+    # Perform BFS
     while queue:
         curr = queue.popleft()
 
         if curr == goal_state:
-            print("Goal state reached!")
+            print("Goal state reached:", curr)
             return
 
         actions = [
-            State(3, curr.five),  # Fill 3-liter jug
-            State(curr.three, 5),  # Fill 5-liter jug
-            State(0, curr.five),  # Empty 3-liter jug
-            State(curr.three, 0),  # Empty 5-liter jug
-            # Pour water from 3-liter to 5-liter
-            State(curr.three - min(curr.three, 5 - curr.five), curr.five + min(curr.three, 5 - curr.five)),
-            # Pour water from 5-liter to 3-liter
-            State(curr.three + min(curr.five, 3 - curr.three), curr.five - min(curr.five, 3 - curr.three))
+            State(capacity.first, curr.second),  # Fill first jug
+            State(curr.first, capacity.second),  # Fill second jug
+            State(0, curr.second),  # Empty first jug
+            State(curr.first, 0),  # Empty second jug
+            # Pour from first jug to second jug
+            State(curr.first - min(curr.first, capacity.second - curr.second),
+                  curr.second + min(curr.first, capacity.second - curr.second)),
+            # Pour from second jug to first jug
+            State(curr.first + min(curr.second, capacity.first - curr.first),
+                  curr.second - min(curr.second, capacity.first - curr.first))
         ]
 
         for action in actions:
@@ -50,4 +53,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    first_jug_capacity = 3
+    second_jug_capacity = 5
+    goal = State(0, 4)
+
+    solve_water_jug_problem(first_jug_capacity, second_jug_capacity, goal)
