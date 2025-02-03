@@ -8,6 +8,7 @@ class State:
         self.rod_1 = rod_1
         self.rod_2 = rod_2
         self.rod_3 = rod_3
+        self.parent: State | None = None
 
     def __eq__(self, other):
         return (self.rod_1, self.rod_2, self.rod_3) == (other.rod_1, other.rod_2, other.rod_3)
@@ -16,6 +17,23 @@ class State:
         return hash((self.rod_1, self.rod_2, self.rod_3))
 
     def __repr__(self):
+        return f"State({self.rod_1}, {self.rod_2}, {self.rod_3})"
+
+    def track_path(self) -> None:
+        path = []
+        goal = self
+
+        while goal:
+            path.append(goal)
+            goal = goal.parent
+
+        path.reverse()
+
+        print("\nSolution Path:")
+        for state in path:
+            print(state)
+
+    def __str__(self):
         return f"State({self.rod_1}, {self.rod_2}, {self.rod_3})"
 
 
@@ -32,17 +50,20 @@ def main():
 
         if curr == goal:
             print('Goal state found:', curr)
+            curr.track_path()
             return
 
         # Move disk from rod 1 to rod 2 or rod 3 given that the move is valid
         if curr.rod_1:
             if not curr.rod_2 or curr.rod_1[-1] < curr.rod_2[-1]:
                 new_state = State(curr.rod_1[:-1], curr.rod_2 + (curr.rod_1[-1],), curr.rod_3)
+                new_state.parent = curr
                 if new_state not in visited:
                     queue.append(new_state)
                     visited.add(new_state)
             if not curr.rod_3 or curr.rod_1[-1] < curr.rod_3[-1]:
                 new_state = State(curr.rod_1[:-1], curr.rod_2, curr.rod_3 + (curr.rod_1[-1],))
+                new_state.parent = curr
                 if new_state not in visited:
                     queue.append(new_state)
                     visited.add(new_state)
@@ -51,11 +72,13 @@ def main():
         if curr.rod_2:
             if not curr.rod_1 or curr.rod_2[-1] < curr.rod_1[-1]:
                 new_state = State(curr.rod_1 + (curr.rod_2[-1],), curr.rod_2[:-1], curr.rod_3)
+                new_state.parent = curr
                 if new_state not in visited:
                     queue.append(new_state)
                     visited.add(new_state)
             if not curr.rod_3 or curr.rod_2[-1] < curr.rod_3[-1]:
                 new_state = State(curr.rod_1, curr.rod_2[:-1], curr.rod_3 + (curr.rod_2[-1],))
+                new_state.parent = curr
                 if new_state not in visited:
                     queue.append(new_state)
                     visited.add(new_state)
@@ -64,11 +87,13 @@ def main():
         if curr.rod_3:
             if not curr.rod_1 or curr.rod_3[-1] < curr.rod_1[-1]:
                 new_state = State(curr.rod_1 + (curr.rod_3[-1],), curr.rod_2, curr.rod_3[:-1])
+                new_state.parent = curr
                 if new_state not in visited:
                     queue.append(new_state)
                     visited.add(new_state)
             if not curr.rod_2 or curr.rod_3[-1] < curr.rod_2[-1]:
                 new_state = State(curr.rod_1, curr.rod_2 + (curr.rod_3[-1],), curr.rod_3[:-1])
+                new_state.parent = curr
                 if new_state not in visited:
                     queue.append(new_state)
                     visited.add(new_state)
