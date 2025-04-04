@@ -40,8 +40,8 @@ SPEED_DIFF = 100
 ACCELERATION = 70
 
 
-def fuzzify(value, sets):
-    return {k: get_membership(value, v) for k, v in sets.items()}
+def fuzzify(x, sets):
+    return {k: get_membership(x, v) for k, v in sets.items()}
 
 
 speed_fuzzy = fuzzify(SPEED_DIFF, FUZZY_SETS)
