@@ -20,8 +20,10 @@ df = 0.9
 print(rewards)
 
 for j in range(5):
+
     for i in transition.keys():
         m = -math.inf
+    
         for action in transition[i].keys():
             s = 0
             for state in transition[i][action].keys():
